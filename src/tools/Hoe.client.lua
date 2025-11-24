@@ -13,7 +13,7 @@ local tillGroundEvent = events:WaitForChild("TillGround")
 
 -- CONFIG
 local GRID_SIZE = 4
-local GHOST_SIZE = Vector3.new(4, 1, 4) 
+local GHOST_SIZE = Vector3.new(4, 0.2, 4) 
 
 -- STATE
 local ghostPart = nil
@@ -25,12 +25,9 @@ local function createGhost()
 	ghostPart.Size = GHOST_SIZE
 	ghostPart.Anchored = true
 	ghostPart.CanCollide = false
-	
-	-- UPDATED VISUALS: Make it 'Neon' so it glows and is easy to see
-	ghostPart.Transparency = 0.4 -- More solid (was 0.5)
-	ghostPart.Color = Color3.fromRGB(130, 90, 50) -- Lighter Brown for visibility
-	ghostPart.Material = Enum.Material.Neon -- Neon makes it stand out in the dark!
-	
+	ghostPart.Transparency = 0.4
+	ghostPart.Color = Color3.fromRGB(130, 90, 50)
+	ghostPart.Material = Enum.Material.Neon
 	ghostPart.Parent = workspace
 	mouse.TargetFilter = ghostPart
 end
@@ -43,20 +40,27 @@ local function updateGhost()
 	if not ghostPart then return end
 	
 	local target = mouse.Target
-	-- Only show ghost on valid ground (Baseplate)
-	--if target and target.Name == "Baseplate" then
+	
+	-- STRICT CHECK: Only allow Baseplate or Terrain. 
+	-- If we hover over existing Soil, existing Fence, or a Zombie, HIDE THE GHOST.
 	if target and (target.Name == "Baseplate" or target:IsA("Terrain")) then
-		-- SNAP TO GRID
+		
+		-- 1. Grid Snap
 		local x = math.round(mouse.Hit.X / GRID_SIZE) * GRID_SIZE
 		local z = math.round(mouse.Hit.Z / GRID_SIZE) * GRID_SIZE
-		local y = target.Position.Y + (target.Size.Y / 2) + (GHOST_SIZE.Y / 2)
+		
+		-- 2. Height Logic
+		local y
+		if target:IsA("Terrain") then
+			y = mouse.Hit.Y + (GHOST_SIZE.Y / 2)
+		else
+			y = target.Position.Y + (target.Size.Y / 2) + (GHOST_SIZE.Y / 2)
+		end
 		
 		ghostPart.CFrame = CFrame.new(x, y, z)
-		-- Keep it visible Green/Brown to show "You can place here"
-		ghostPart.Color = Color3.fromRGB(100, 255, 100) -- Bright Green means "Valid Spot"
-		ghostPart.Transparency = 0.4
+		ghostPart.Color = Color3.fromRGB(100, 255, 100) -- Green (Valid)
 	else
-		-- Hide it (or turn red)
+		-- If aiming at TilledSoil or anything else, Hide it.
 		ghostPart.CFrame = CFrame.new(0, -100, 0) 
 	end
 end
@@ -72,8 +76,9 @@ RunService.RenderStepped:Connect(function()
 end)
 
 tool.Activated:Connect(function()
-	--if ghostPart and mouse.Target and mouse.Target.Name == "Baseplate" then
-	if ghostPart and mouse.Target and (mouse.Target.Name == "Baseplate" or mouse.Target:IsA("Terrain")) then
-		tillGroundEvent:FireServer(mouse.Target, ghostPart.Position)
+	local target = mouse.Target
+	-- Same strict check here preventing the click
+	if ghostPart and target and (target.Name == "Baseplate" or target:IsA("Terrain")) then
+		tillGroundEvent:FireServer(target, ghostPart.Position)
 	end
 end)

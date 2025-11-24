@@ -5,24 +5,43 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local tool = script:FindFirstAncestorWhichIsA("Tool")
 
--- Get the events folder
-local sharedFolder = ReplicatedStorage:WaitForChild("Shared")
-local eventsFolder = sharedFolder:WaitForChild("events")
-
--- Get a NEW event that we are about to create
+local eventsFolder = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("events")
 local plantSeedEvent = eventsFolder:WaitForChild("PlantSeed")
-
-print("Seeds Client Script Loaded. Found PlantSeed event.")
 
 tool.Activated:Connect(function()
 	local mouse = player:GetMouse()
-	local mouseTarget = mouse.Target
-
-	-- We only care about the part we clicked, not the exact position
-	if mouseTarget then
-		print("Client: Firing PlantSeed event to server.")
-		plantSeedEvent:FireServer(mouseTarget)
-	else
-		print("Client: Clicked the sky, not firing.")
+	local target = mouse.Target
+	
+	if not target then return end
+	
+	local finalTarget = nil
+	
+	-- CASE 1: Clicked directly on Soil
+	if target.Name == "TilledSoil" then
+		finalTarget = target
+	
+	-- CASE 2: Clicked on Terrain (Grass)
+	elseif target:IsA("Terrain") then
+		local hitPos = mouse.Hit.Position
+		
+		-- Search a 5-stud box around the click
+		local parts = workspace:GetPartBoundsInBox(CFrame.new(hitPos), Vector3.new(5, 5, 5))
+		
+		for _, p in ipairs(parts) do
+			if p.Name == "TilledSoil" then
+				finalTarget = p
+				break
+			end
+		end
+	end
+	
+	-- CHECK: Is the soil actually valid and empty?
+	if finalTarget and finalTarget.Name == "TilledSoil" then
+		if finalTarget:FindFirstChild("ActivePlant") then
+			print("Client: Soil is occupied!")
+		else
+			print("Client: Planting on valid soil.")
+			plantSeedEvent:FireServer(finalTarget)
+		end
 	end
 end)

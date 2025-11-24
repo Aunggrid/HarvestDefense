@@ -49,7 +49,7 @@ end
 -- Connect Buttons
 setupButton("CleaveButton", "Cleave")
 setupButton("DashButton", "Dash")
-
+setupButton("ReachButton", "Reach")
 -- 3. TOGGLE MENU (Press K)
 UserInputService.InputBegan:Connect(function(input, gp)
 	if gp then return end

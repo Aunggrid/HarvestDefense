@@ -4,7 +4,7 @@ local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
-local DASH_COOLDOWN = 2
+local DASH_COOLDOWN = 5
 local lastDash = 0
 
 local function dash(actionName, inputState)
@@ -18,8 +18,11 @@ local function dash(actionName, inputState)
 		local hum = char:FindFirstChild("Humanoid")
 		
 		-- Check Skill
-		local hasSkill = player:WaitForChild("UnlockedSkills"):FindFirstChild("DodgeRoll_1")
-		if not hasSkill then return end -- Must unlock skill first!
+		-- local hasSkill = player:WaitForChild("UnlockedSkills"):FindFirstChild("DodgeRoll_1")
+		-- if not hasSkill then return end -- Must unlock skill first!
+		local hasSkill = player:WaitForChild("UnlockedSkills"):FindFirstChild("Dash_1")
+		
+		if not hasSkill then return end
 		
 		lastDash = now
 		
@@ -41,7 +44,7 @@ local function dash(actionName, inputState)
 		
 		-- Play Animation
 		local anim = Instance.new("Animation")
-		anim.AnimationId = "rbxassetid://1014663274" -- Generic roll ID (might need to find one)
+		anim.AnimationId = "rbxassetid://121901311945957" -- Generic roll ID (might need to find one)
 		local track = hum:LoadAnimation(anim)
 		track:Play()
 		

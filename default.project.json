@@ -21,7 +21,8 @@
 
           "BuildStructure": { "$className": "RemoteEvent" },
           "UnlockSkill": { "$className": "RemoteFunction" },
-          "ResetGame": { "$className": "RemoteEvent" }
+          "ResetGame": { "$className": "RemoteEvent" },
+          "MapLoaded": { "$className": "RemoteEvent" }
         },
         "ItemData": {
           "$path": "src/shared/ItemData.lua"

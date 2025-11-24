@@ -13,7 +13,7 @@ local buildEvent = events:WaitForChild("BuildStructure")
 
 -- CONFIGURATION
 local GRID_SIZE = 4
-local GHOST_SIZE = Vector3.new(4, 4, 1) 
+local GHOST_SIZE = Vector3.new(4, 4, 1)
 
 -- STATE
 local currentRotation = 0 
@@ -41,19 +41,24 @@ local function updateGhost()
 	if not ghostPart then return end
 	
 	local target = mouse.Target
-	-- Works on Baseplate OR TilledSoil OR Ground
-	if target and target.Anchored then
-		-- 1. SNAP TO GRID (The Logic)
-		-- math.round is better than floor for center-snapping
+	-- CHECK: Baseplate OR Terrain (or any anchored part)
+	if target and (target.Anchored or target:IsA("Terrain")) then
+		
+		-- 1. Grid Snap
 		local x = math.round(mouse.Hit.X / GRID_SIZE) * GRID_SIZE
 		local z = math.round(mouse.Hit.Z / GRID_SIZE) * GRID_SIZE
 		
-		-- Set Y to sit exactly on top of the target
-		local y = target.Position.Y + (target.Size.Y / 2) + (GHOST_SIZE.Y / 2)
+		-- 2. Height Fix
+		local y
+		if target:IsA("Terrain") then
+			y = mouse.Hit.Y + (GHOST_SIZE.Y / 2)
+		else
+			y = target.Position.Y + (target.Size.Y / 2) + (GHOST_SIZE.Y / 2)
+		end
 		
 		local snapPos = Vector3.new(x, y, z)
 		
-		-- 2. Apply Rotation
+		-- 3. Rotation
 		local rotationCFrame = CFrame.Angles(0, math.rad(currentRotation), 0)
 		ghostPart.CFrame = CFrame.new(snapPos) * rotationCFrame
 		ghostPart.Color = Color3.fromRGB(0, 255, 0) 
@@ -62,8 +67,8 @@ local function updateGhost()
 	end
 end
 
-tool.Equipped:Connect(function() createGhost() end)
-tool.Unequipped:Connect(function() destroyGhost() end)
+tool.Equipped:Connect(createGhost)
+tool.Unequipped:Connect(destroyGhost)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
@@ -81,7 +86,8 @@ RunService.RenderStepped:Connect(function()
 end)
 
 tool.Activated:Connect(function()
-	if ghostPart and mouse.Target then
+	local target = mouse.Target
+	if ghostPart and target and (target.Anchored or target:IsA("Terrain")) then
 		buildEvent:FireServer("WoodFence", ghostPart.Position, currentRotation)
 	end
 end)
