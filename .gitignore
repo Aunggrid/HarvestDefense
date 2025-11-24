@@ -1,0 +1,9 @@
+# Roblox Studio locks
+*.lock
+
+# Mac system files
+.DS_Store
+
+# Rojo build artifacts (If you ever build a file to send to someone)
+*.rbxl
+*.rbxlx

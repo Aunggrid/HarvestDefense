@@ -1,0 +1,87 @@
+-- src/tools/Hammer.client.lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local tool = script.Parent
+
+local events = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("events")
+local buildEvent = events:WaitForChild("BuildStructure")
+
+-- CONFIGURATION
+local GRID_SIZE = 4
+local GHOST_SIZE = Vector3.new(4, 4, 1) 
+
+-- STATE
+local currentRotation = 0 
+local ghostPart = nil
+
+local function createGhost()
+	if ghostPart then return end
+	ghostPart = Instance.new("Part")
+	ghostPart.Name = "GhostFence"
+	ghostPart.Size = GHOST_SIZE
+	ghostPart.Anchored = true
+	ghostPart.CanCollide = false
+	ghostPart.Transparency = 0.5
+	ghostPart.Color = Color3.fromRGB(0, 255, 0)
+	ghostPart.Material = Enum.Material.ForceField
+	ghostPart.Parent = workspace
+	mouse.TargetFilter = ghostPart 
+end
+
+local function destroyGhost()
+	if ghostPart then ghostPart:Destroy(); ghostPart = nil end
+end
+
+local function updateGhost()
+	if not ghostPart then return end
+	
+	local target = mouse.Target
+	-- Works on Baseplate OR TilledSoil OR Ground
+	if target and target.Anchored then
+		-- 1. SNAP TO GRID (The Logic)
+		-- math.round is better than floor for center-snapping
+		local x = math.round(mouse.Hit.X / GRID_SIZE) * GRID_SIZE
+		local z = math.round(mouse.Hit.Z / GRID_SIZE) * GRID_SIZE
+		
+		-- Set Y to sit exactly on top of the target
+		local y = target.Position.Y + (target.Size.Y / 2) + (GHOST_SIZE.Y / 2)
+		
+		local snapPos = Vector3.new(x, y, z)
+		
+		-- 2. Apply Rotation
+		local rotationCFrame = CFrame.Angles(0, math.rad(currentRotation), 0)
+		ghostPart.CFrame = CFrame.new(snapPos) * rotationCFrame
+		ghostPart.Color = Color3.fromRGB(0, 255, 0) 
+	else
+		ghostPart.CFrame = CFrame.new(0, -100, 0) 
+	end
+end
+
+tool.Equipped:Connect(function() createGhost() end)
+tool.Unequipped:Connect(function() destroyGhost() end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.R and tool.Parent == player.Character then
+		currentRotation = currentRotation + 90
+		if currentRotation >= 360 then currentRotation = 0 end
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if tool.Parent == player.Character then
+		if not ghostPart then createGhost() end
+		updateGhost()
+	end
+end)
+
+tool.Activated:Connect(function()
+	if ghostPart and mouse.Target then
+		buildEvent:FireServer("WoodFence", ghostPart.Position, currentRotation)
+	end
+end)
