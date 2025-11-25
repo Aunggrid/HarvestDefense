@@ -45,7 +45,7 @@ resetEvent.OnServerEvent:Connect(function(player)
 	-- 2. Clean up entities
 	cleanMap()
 	
-	-- 3. RESET PLAYER STATS (New!)
+	-- 3. RESET PLAYER STATS
 	for _, p in ipairs(Players:GetPlayers()) do
 		local leaderstats = p:FindFirstChild("leaderstats")
 		if leaderstats then
@@ -56,12 +56,16 @@ resetEvent.OnServerEvent:Connect(function(player)
 			-- Reset Skill Points to 1
 			local sp = leaderstats:FindFirstChild("SkillPoints")
 			if sp then sp.Value = 1 end
+			
+			-- [[ NEW: Reset Wood ]]
+			local wood = leaderstats:FindFirstChild("Wood")
+			if wood then wood.Value = 10 end -- Reset to starting amount
 		end
 		
 		-- Remove Unlocked Skills
 		local skills = p:FindFirstChild("UnlockedSkills")
 		if skills then
-			skills:ClearAllChildren() -- Deletes all the "Cleave_1" etc. tags
+			skills:ClearAllChildren() 
 		end
 		
 		-- Respawn to fix health

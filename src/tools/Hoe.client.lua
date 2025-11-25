@@ -13,21 +13,21 @@ local tillGroundEvent = events:WaitForChild("TillGround")
 
 -- CONFIG
 local GRID_SIZE = 4
-local GHOST_SIZE = Vector3.new(4, 0.2, 4) 
+local PLOT_SIZE = Vector3.new(3.8, 1, 3.8) -- Slightly smaller than 4 to leave gaps
+local GHOST_SIZE = PLOT_SIZE
 
--- STATE
 local ghostPart = nil
 
 local function createGhost()
 	if ghostPart then return end
 	ghostPart = Instance.new("Part")
-	ghostPart.Name = "GhostSoil"
+	ghostPart.Name = "GhostPlot"
 	ghostPart.Size = GHOST_SIZE
 	ghostPart.Anchored = true
 	ghostPart.CanCollide = false
 	ghostPart.Transparency = 0.4
-	ghostPart.Color = Color3.fromRGB(130, 90, 50)
-	ghostPart.Material = Enum.Material.Neon
+	ghostPart.Color = Color3.fromRGB(139, 69, 19) -- Brown (Wood/Dirt)
+	ghostPart.Material = Enum.Material.Wood
 	ghostPart.Parent = workspace
 	mouse.TargetFilter = ghostPart
 end
@@ -38,30 +38,20 @@ end
 
 local function updateGhost()
 	if not ghostPart then return end
-	
 	local target = mouse.Target
 	
-	-- STRICT CHECK: Only allow Baseplate or Terrain. 
-	-- If we hover over existing Soil, existing Fence, or a Zombie, HIDE THE GHOST.
+	-- Only build on Terrain or Baseplate
 	if target and (target.Name == "Baseplate" or target:IsA("Terrain")) then
-		
-		-- 1. Grid Snap
 		local x = math.round(mouse.Hit.X / GRID_SIZE) * GRID_SIZE
 		local z = math.round(mouse.Hit.Z / GRID_SIZE) * GRID_SIZE
 		
-		-- 2. Height Logic
-		local y
-		if target:IsA("Terrain") then
-			y = mouse.Hit.Y + (GHOST_SIZE.Y / 2)
-		else
-			y = target.Position.Y + (target.Size.Y / 2) + (GHOST_SIZE.Y / 2)
-		end
+		-- Place ON TOP of the ground
+		local y = mouse.Hit.Y + (GHOST_SIZE.Y / 2)
 		
 		ghostPart.CFrame = CFrame.new(x, y, z)
-		ghostPart.Color = Color3.fromRGB(100, 255, 100) -- Green (Valid)
+		ghostPart.Color = Color3.fromRGB(100, 255, 100) -- Green
 	else
-		-- If aiming at TilledSoil or anything else, Hide it.
-		ghostPart.CFrame = CFrame.new(0, -100, 0) 
+		ghostPart.CFrame = CFrame.new(0, -100, 0) -- Hide
 	end
 end
 
@@ -77,8 +67,8 @@ end)
 
 tool.Activated:Connect(function()
 	local target = mouse.Target
-	-- Same strict check here preventing the click
 	if ghostPart and target and (target.Name == "Baseplate" or target:IsA("Terrain")) then
+		-- Send the position to server
 		tillGroundEvent:FireServer(target, ghostPart.Position)
 	end
 end)

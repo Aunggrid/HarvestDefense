@@ -42,7 +42,14 @@ function Zombie:Attack(hitPart)
 	local now = tick()
 	if (now - self.LastAttackTime) < ATTACK_COOLDOWN then return end
 
-	local humanoid = character:FindFirstChild("Humanoid")
+	-- [[ FIX STARTS HERE ]]
+	-- We initialize humanoid to nil, and only look for it if character exists
+	local humanoid = nil
+	if character then
+		humanoid = character:FindFirstChild("Humanoid")
+	end
+	-- [[ FIX ENDS HERE ]]
+
 	local structureHealth = hitPart:GetAttribute("Health")
 
 	if humanoid then

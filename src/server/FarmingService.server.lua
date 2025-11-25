@@ -14,7 +14,7 @@ local buildEvent = eventsFolder:WaitForChild("BuildStructure")
 local ItemData = require(ReplicatedStorage.Shared.ItemData)
 
 -- CONFIG
-local GROWTH_SPEED = 1.0 
+local GROWTH_SPEED = 2.0 
 -- Giant Sapling Size (2x2x4) to be unmissable
 local MATURE_SIZE = Vector3.new(2, 4, 2) 
 
@@ -91,6 +91,10 @@ end
 local lastShotTime = {}
 local FIRE_RATE = 1.0
 
+-- Create params once to reuse (Optimization)
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
 RunService.Heartbeat:Connect(function(deltaTime)
 	local now = tick()
 	local time = Lighting.ClockTime
@@ -104,6 +108,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 			progress = progress + (GROWTH_SPEED * deltaTime)
 			
 			if progress >= 100 then
+                -- (Keep your existing planting logic here, it is fine)
 				local ownerId = sapling:GetAttribute("OwnerId")
 				local soil = sapling.Parent
 				local newType = getRandomPlantType()
@@ -114,11 +119,13 @@ RunService.Heartbeat:Connect(function(deltaTime)
 					local realPlant = plantTemplate:Clone()
 					realPlant.Name = "ActivePlant"
 					
-					-- Raycast to find exact floor for Mature Plant
+					-- Raycast for Mature Plant (Fixed)
+                    rayParams.FilterDescendantsInstances = {realPlant, soil, sapling} -- Ignore self
 					local rayOrigin = soil.Position + Vector3.new(0, 5, 0)
 					local rayDir = Vector3.new(0, -10, 0)
-					local result = workspace:Raycast(rayOrigin, rayDir)
-					local floorY = soil.Position.Y
+					local result = workspace:Raycast(rayOrigin, rayDir, rayParams) -- PASS PARAMS
+					
+                    local floorY = soil.Position.Y
 					if result then floorY = result.Position.Y end
 					
 					local offset = (realPlant.Size.Y/2)
@@ -129,23 +136,31 @@ RunService.Heartbeat:Connect(function(deltaTime)
 					CollectionService:AddTag(realPlant, "Targetable")
 					CollectionService:AddTag(realPlant, "MaturePlant")
 					initializePlantTimer(realPlant)
-					local emitter = Instance.new("ParticleEmitter")
+					
+                    -- VFX
+                    local emitter = Instance.new("ParticleEmitter")
 					emitter.Texture = "rbxassetid://243098098"; emitter.Lifetime = NumberRange.new(0.5)
 					emitter.Rate = 0; emitter.Parent = realPlant; emitter:Emit(10)
 					game.Debris:AddItem(emitter, 1)
 				end
 			else
+                -- UPDATE GROWING SAPLING
 				sapling:SetAttribute("GrowthProgress", progress)
 				local percent = progress / 100
 				
-				-- GROWTH VISUALS: Start BIG (0.8 scale)
+				-- GROWTH VISUALS
 				sapling.Size = MATURE_SIZE * (0.8 + (0.2 * percent))
 				
-				-- Keep sapling anchored to the floor visually
+				-- KEEP ANCHORED (THE FIX IS HERE)
 				if sapling.Parent then
+                    -- Update the filter list to ignore THIS sapling
+                    rayParams.FilterDescendantsInstances = {sapling, sapling.Parent}
+
 					local rayOrigin = sapling.Parent.Position + Vector3.new(0, 5, 0)
 					local rayDir = Vector3.new(0, -10, 0)
-					local result = workspace:Raycast(rayOrigin, rayDir)
+					
+                    -- Pass rayParams here!
+					local result = workspace:Raycast(rayOrigin, rayDir, rayParams)
 					
 					if result then
 						local floorY = result.Position.Y
@@ -188,60 +203,92 @@ end)
 -- --- EVENT HANDLERS ---
 
 local function onTillGround(player, targetPart, position)
+	-- 1. Check Target Validity
 	local isValid = (targetPart.Name == "Baseplate" or targetPart:IsA("Terrain"))
 	if not isValid then return end
 	
+	-- 2. Check Resources
+	local woodStat = player.leaderstats:FindFirstChild("Wood")
+	if not woodStat or woodStat.Value < 5 then
+		warn("Not enough wood!")
+		return
+	end
+
+	-- 3. Grid Calculation
 	local GRID_SIZE = 4
 	local x = math.round(position.X / GRID_SIZE) * GRID_SIZE
 	local z = math.round(position.Z / GRID_SIZE) * GRID_SIZE
-	local y = position.Y 
 	
-	local parts = workspace:GetPartBoundsInBox(CFrame.new(x, y, z), Vector3.new(2, 10, 2))
+	-- We use the clicked height, but ensure it sits ON TOP of the floor.
+	-- If clicking terrain, position.Y is the surface.
+	local y = position.Y + 0.5 -- Shift up by half the plot height (1/2 = 0.5)
+	
+	-- 4. Overlap Check
+	local checkSize = Vector3.new(3.5, 5, 3.5)
+	local checkCFrame = CFrame.new(x, y, z)
+	
+	local parts = workspace:GetPartBoundsInBox(checkCFrame, checkSize)
 	for _, p in ipairs(parts) do
-		if p.Name == "TilledSoil" then warn("Soil exists!"); return end
+		if p.Name == "FarmPlot" or p.Name == "WoodFence" or p.Name == "TilledSoil" then
+			warn("Something is already here!")
+			return 
+		end
 	end
-
-	local soil = Instance.new("Part")
-	soil.Name = "TilledSoil"
-	soil.Size = Vector3.new(4, 0.2, 4)
-	soil.Transparency = 1 
-	soil.CanCollide = false 
-	soil.Anchored = true
-	soil.Position = Vector3.new(x, y, z) 
-	soil.Parent = workspace
+    
+	-- 5. Place the Plot
+	woodStat.Value -= 5
 	
-	-- FIX: Move fill box DOWN by 2 studs.
-	-- This keeps the surface at the same level but changes the material to Ground.
-	local terrain = workspace.Terrain
-	terrain:FillBlock(soil.CFrame * CFrame.new(0, -2, 0), Vector3.new(4, 4, 4), Enum.Material.Ground)
+	local plot = Instance.new("Part")
+	plot.Name = "FarmPlot"
+	plot.Size = Vector3.new(3.8, 1, 3.8) -- The Box
+	plot.Material = Enum.Material.Wood
+	plot.Color = Color3.fromRGB(100, 60, 30)
+	plot.Anchored = true
+	plot.CanCollide = true
+	plot.CFrame = CFrame.new(x, y, z) -- Use CFrame for safer positioning
+	plot.Parent = workspace
+	
+	local dirt = Instance.new("Part")
+	dirt.Name = "DirtTop"
+	dirt.Size = Vector3.new(3.4, 0.2, 3.4)
+	dirt.Color = Color3.fromRGB(50, 30, 10)
+	dirt.Material = Enum.Material.Grass
+	dirt.Anchored = true
+	dirt.CanCollide = false
+	dirt.CFrame = plot.CFrame * CFrame.new(0, 0.51, 0)
+	dirt.Parent = plot
+	
+	-- [[ DELETED THE TERRAIN FILLBLOCK CODE TO STOP MOUNDS ]]
+
+    local sfx = Instance.new("Sound")
+    sfx.SoundId = "rbxassetid://4512214349"
+    sfx.Parent = plot
+    sfx:Play()
+	
+	print("✅ Placed FarmPlot at " .. tostring(plot.Position))
 end
 
 local function onPlantSeed(player, targetPart)
-	if targetPart.Name ~= "TilledSoil" then return end
-	if targetPart:FindFirstChild("ActivePlant") then return end
+	-- Support planting on the new FarmPlot (or its dirt top)
+	local finalTarget = targetPart
 	
-	local sapling = ServerStorage.Plants.Sapling:Clone()
-	sapling.Name = "ActivePlant"
-	
-	-- SIZE: Start at 80% of full size (Huge)
-	sapling.Size = MATURE_SIZE * 0.8
-	
-	-- FIX: Raycast to find true surface height
-	-- Shoot a ray down from above the soil to find exactly where the dirt is
-	local rayOrigin = targetPart.Position + Vector3.new(0, 5, 0)
-	local rayDir = Vector3.new(0, -10, 0)
-	local result = workspace:Raycast(rayOrigin, rayDir)
-	
-	local floorY = targetPart.Position.Y
-	if result then
-		floorY = result.Position.Y
+	-- If they clicked the DirtTop, get the main Plot
+	if targetPart.Name == "DirtTop" then
+		finalTarget = targetPart.Parent
 	end
 	
-	-- Place on top of the found floor
-	local offset = (sapling.Size.Y / 2)
-	sapling.CFrame = CFrame.new(targetPart.Position.X, floorY + offset, targetPart.Position.Z)
+	if finalTarget.Name ~= "FarmPlot" then return end
+	if finalTarget:FindFirstChild("ActivePlant") then return end
 	
-	sapling.Parent = targetPart
+	-- ... (The rest of your planting logic is fine, just ensure it sets parent to finalTarget) ...
+	local sapling = ServerStorage.Plants.Sapling:Clone()
+	sapling.Name = "ActivePlant"
+	sapling.Size = MATURE_SIZE * 0.8
+	
+	-- Simple positioning on top of the plot
+	sapling.CFrame = finalTarget.CFrame * CFrame.new(0, (finalTarget.Size.Y/2) + (sapling.Size.Y/2), 0)
+	
+	sapling.Parent = finalTarget
 	sapling:SetAttribute("OwnerId", player.UserId)
 	sapling:SetAttribute("GrowthProgress", 0)
 	CollectionService:AddTag(sapling, "Sapling")
@@ -265,6 +312,7 @@ local function onBuildStructure(player, structureName, position, rotationY)
 end
 
 tillGroundEvent.OnServerEvent:Connect(onTillGround)
+
 plantSeedEvent.OnServerEvent:Connect(onPlantSeed)
 buildEvent.OnServerEvent:Connect(onBuildStructure)
 
