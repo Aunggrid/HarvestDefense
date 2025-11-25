@@ -14,20 +14,29 @@ local START_TIME = 6
 -- HELPER: Clean the Map
 local function cleanMap()
 	print("🧹 Cleaning Map...")
+	
+	-- 1. Clean Zombies
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child.Name == "Zombie" then child:Destroy() end
 	end
+	
+	-- 2. Clean Tagged Items (Plants, Buildings)
 	for _, obj in ipairs(CollectionService:GetTagged("Targetable")) do
 		obj:Destroy()
 	end
 	for _, obj in ipairs(CollectionService:GetTagged("Sapling")) do
 		obj:Destroy()
 	end
+	
+	-- 3. Clean Fences
 	for _, child in ipairs(Workspace:GetChildren()) do
 		if child.Name == "WoodFence" then child:Destroy() end
 	end
+	
+	-- 4. [[ FIX IS HERE ]] Clean Farm Plots
+	-- Changed from "TilledSoil" to "FarmPlot"
 	for _, child in ipairs(Workspace:GetChildren()) do
-		if child.Name == "TilledSoil" then child:Destroy() end
+		if child.Name == "FarmPlot" then child:Destroy() end
 	end
 end
 
@@ -59,7 +68,7 @@ resetEvent.OnServerEvent:Connect(function(player)
 			
 			-- [[ NEW: Reset Wood ]]
 			local wood = leaderstats:FindFirstChild("Wood")
-			if wood then wood.Value = 10 end -- Reset to starting amount
+			if wood then wood.Value = 100 end -- Reset to starting amount
 		end
 		
 		-- Remove Unlocked Skills
@@ -100,23 +109,30 @@ while true do
         ReplicatedStorage:SetAttribute("GameState", currentState)
         
         if currentState == "FARM" then
-            -- NEW: WEEKLY SKILL POINTS LOGIC
             local currentWave = ReplicatedStorage:GetAttribute("Wave") or 0
             local currentDay = ReplicatedStorage:GetAttribute("DaysSurvived") or 1
             
             ReplicatedStorage:SetAttribute("Wave", currentWave + 1)
             ReplicatedStorage:SetAttribute("DaysSurvived", currentDay + 1)
             
-            -- Check if a week has passed
-            if currentDay % 7 == 0 then
-                print("🎉 WEEK SURVIVED! Granting Skill Points to all players.")
+            -- [[ CHANGE IS HERE ]]
+            -- Was: if currentDay % 7 == 0 then (Every 7 days)
+            -- Now: Every 5 days
+            if currentDay % 5 == 0 then
+                print("🎉 5 DAYS SURVIVED! Granting Skill Points.")
+                
                 for _, p in ipairs(Players:GetPlayers()) do
                     local leaderstats = p:FindFirstChild("leaderstats")
                     if leaderstats then
                         local sp = leaderstats:FindFirstChild("SkillPoints")
                         if sp then
                             sp.Value = sp.Value + 1
-                            -- Optional: Play a "Level Up" sound here
+                            
+                            -- Optional: Play a sound to celebrate
+                            local sound = Instance.new("Sound")
+                            sound.SoundId = "rbxassetid://12222200" -- 'Coin' sound
+                            sound.Parent = p.Character or p:FindFirstChild("Backpack")
+                            if sound.Parent then sound:Play() end
                         end
                     end
                 end

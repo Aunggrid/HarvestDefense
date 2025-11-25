@@ -22,13 +22,18 @@ local function createGhost()
 	if ghostPart then return end
 	ghostPart = Instance.new("Part")
 	ghostPart.Name = "GhostPlot"
-	ghostPart.Size = GHOST_SIZE
+	ghostPart.Size = PLOT_SIZE -- Ensure you have the box size here from previous steps!
 	ghostPart.Anchored = true
 	ghostPart.CanCollide = false
 	ghostPart.Transparency = 0.4
-	ghostPart.Color = Color3.fromRGB(139, 69, 19) -- Brown (Wood/Dirt)
+	ghostPart.Color = Color3.fromRGB(139, 69, 19)
 	ghostPart.Material = Enum.Material.Wood
-	ghostPart.Parent = workspace
+	
+	-- [[ FIX IS HERE ]]
+	-- Parent to Character instead of Workspace. 
+	-- When Character dies, this part is auto-deleted.
+	ghostPart.Parent = player.Character or workspace 
+	
 	mouse.TargetFilter = ghostPart
 end
 

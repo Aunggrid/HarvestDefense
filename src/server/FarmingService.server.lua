@@ -139,7 +139,8 @@ RunService.Heartbeat:Connect(function(deltaTime)
 					
                     -- VFX
                     local emitter = Instance.new("ParticleEmitter")
-					emitter.Texture = "rbxassetid://243098098"; emitter.Lifetime = NumberRange.new(0.5)
+					emitter.Texture = "rbxassetid://243098098"; 
+					emitter.Lifetime = NumberRange.new(0.5)
 					emitter.Rate = 0; emitter.Parent = realPlant; emitter:Emit(10)
 					game.Debris:AddItem(emitter, 1)
 				end
@@ -261,7 +262,7 @@ local function onTillGround(player, targetPart, position)
 	-- [[ DELETED THE TERRAIN FILLBLOCK CODE TO STOP MOUNDS ]]
 
     local sfx = Instance.new("Sound")
-    sfx.SoundId = "rbxassetid://4512214349"
+    sfx.SoundId = "rbxassetid://82357128779870"
     sfx.Parent = plot
     sfx:Play()
 	

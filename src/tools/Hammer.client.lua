@@ -29,7 +29,11 @@ local function createGhost()
 	ghostPart.Transparency = 0.5
 	ghostPart.Color = Color3.fromRGB(0, 255, 0)
 	ghostPart.Material = Enum.Material.ForceField
-	ghostPart.Parent = workspace
+	
+	-- [[ FIX IS HERE ]]
+	-- Parent to Character so it auto-deletes on death
+	ghostPart.Parent = player.Character or workspace
+	
 	mouse.TargetFilter = ghostPart 
 end
 
